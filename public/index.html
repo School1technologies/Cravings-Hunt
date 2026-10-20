@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cravings Hunt – QR table ordering</title>
+<link rel="icon" href="/icon.png"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--ink:#111;--mist:#f6f6f6;--card:#fff;--sun:#ff7a00;--chili:#d93a1c;--ok:#1f8a4c;--mute:#5f5f5f;--line:#e4e4e4}
+*{box-sizing:border-box}body{margin:0;font-family:"Bricolage Grotesque",system-ui,sans-serif;background:var(--mist);color:var(--ink);line-height:1.45}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:.55rem .9rem;background:var(--ink);color:#fff;font-weight:600}
+button.alt{background:#fff;color:var(--ink);border:1.5px solid var(--ink)}button.sun{background:var(--sun);color:#2b1c00}button.bad{background:var(--chili)}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+input,select{padding:.5rem .6rem;border:1.5px solid var(--line);border-radius:10px;background:#fff;max-width:100%}
+.top{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem 1rem;background:var(--ink);color:#fff;position:sticky;top:0;z-index:5}
+.top b{font-size:1.15rem}.brand{display:flex;align-items:center;gap:.5rem;color:#fff;text-decoration:none}.brand img{width:34px;height:34px;border-radius:8px}.wrap{max-width:980px;margin:0 auto;padding:1rem}.narrow{max-width:520px}
+.card{background:var(--card);border-radius:16px;padding:1rem;margin-bottom:.8rem;border:1px solid var(--line)}
+.row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}.sp{justify-content:space-between}.grow{flex:1}.mute{color:var(--mute);font-size:.9rem}
+.chips{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.4rem;margin-bottom:.6rem}.chip{white-space:nowrap;background:#fff;color:var(--ink);border:1.5px solid var(--line)}.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dish{display:flex;gap:.8rem;background:#fff;border-radius:16px;padding:.7rem;margin-bottom:.6rem;border:1px solid var(--line)}.dish.off{opacity:.45}
+.ph{position:relative;width:84px;height:84px;flex:none;border-radius:12px;background:#ffe6cc;display:grid;place-items:center;font-size:2.4rem;overflow:hidden}.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.dot{display:inline-block;width:11px;height:11px;border-radius:3px;border:2px solid var(--ok);position:relative;margin-right:.35rem}.dot:after{content:"";position:absolute;inset:2px;border-radius:50%;background:var(--ok)}.dot.nv{border-color:var(--chili)}.dot.nv:after{background:var(--chili)}
+.step{display:inline-flex;align-items:center;gap:.5rem;background:var(--ink);color:#fff;border-radius:10px;padding:.15rem .3rem}.step button{background:none;padding:.2rem .6rem;font-size:1.1rem}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--sun);color:#2b1c00;padding:.8rem 1rem;display:flex;justify-content:space-between;align-items:center;z-index:6}.bar button{background:#2b1c00;color:#fff}
+.tabs{display:flex;gap:.4rem;margin-bottom:.8rem;flex-wrap:wrap}.tag{display:inline-block;padding:.1rem .6rem;border-radius:99px;font-size:.8rem;font-weight:600;background:#ffe6cc}
+.tag.new{background:#fde3a6}.tag.preparing{background:#bfd8ff}.tag.ready{background:#c4ecd2}.tag.served{background:#e3e3e3}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:.4rem .3rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.8rem}.qr{display:grid;place-items:center;padding:.5rem;background:#fff}
+.toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:.5rem 1rem;border-radius:10px;z-index:9}
+.big{font-size:1.8rem;font-weight:800;margin:.2rem 0}.pad{height:90px}
+@media print{.top,.bar,.noprint{display:none!important}body{background:#fff}}
+@media (prefers-reduced-motion:no-preference){.toast{animation:in .2s}@keyframes in{from{opacity:0}}}
+.top{border-bottom:3px solid var(--sun)}
+.chip.on{background:var(--sun);color:#111;border-color:var(--sun)}
+.step{background:#111}.step button{color:var(--sun);font-weight:800}
+.bar{background:var(--sun);color:#111;box-shadow:0 -2px 12px rgba(0,0,0,.15)}.bar button{background:#111;color:#fff}
+.dish{padding:.6rem;gap:.9rem;align-items:center}.ph{width:104px;height:104px;border-radius:14px;background:#fff0e0}
+.dish b{font-size:1.02rem}.big{letter-spacing:-.02em}
+h3{margin:.1rem 0 .5rem}.card{box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.tag.new{background:#ffe0c2}.tag.preparing{background:#e9e9e9}.tag.ready{background:#d7f0e0}.tag.served{background:#f0f0f0}
+</style></head><body><div id="app"></div><div id="toast" class="toast" hidden></div>
+<script>
+const K='tabletap_v1',GST=0.05;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const money=n=>'₹'+Number(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const slugify=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+let S={rs:[],ss:[]},A=null,ready=false,ERR='';
+try{A=JSON.parse(sessionStorage.getItem('tt_auth'))}catch(e){}
+const ui={tab:'menu',cat:'All',tray:{},at:'orders',tip:0,staff:'',method:'UPI',sid:null,key:''};
+try{ui.sid=sessionStorage.getItem('tt_sid')}catch(e){}
+const toast=m=>{const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)};
+const R=id=>S.rs.find(r=>r.id===id);
+const items=s=>{const m={};s.rounds.forEach(x=>x.items.forEach(i=>{m[i.id]=m[i.id]||{...i,qty:0};m[i.id].qty+=i.qty}));return Object.values(m)};
+const sub=s=>items(s).reduce((a,i)=>a+i.qty*i.price,0);
+const bill=(s,tip)=>{const b=sub(s),g=Math.round(b*GST*100)/100;return{b,g,tip:tip||0,t:b+g+(tip||0)}};
+async function api(m,p,b){const h={'Content-Type':'application/json'};if(A&&A.token)h.Authorization='Bearer '+A.token;
+ const r=await fetch('/api'+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});let j={};try{j=await r.json()}catch(e){}
+ if(!r.ok){if(r.status===401&&A){setAuth(null);S={rs:[],ss:[]};render()}throw new Error(j.error||'Request failed')}return j}
+async function refresh(bg){const rt=route();
+ if(bg&&document.activeElement&&/^(INPUT|SELECT)$/.test(document.activeElement.tagName))return;
+ ERR='';
+ try{if(rt.v==='cust')S=await api('GET','/table?slug='+encodeURIComponent(rt.slug)+'&table='+rt.t+(ui.sid?'&sid='+encodeURIComponent(ui.sid):''));
+  else if(rt.v==='admin'&&A&&A.role==='admin')S=await api('GET','/admin/state');
+  else if(rt.v==='super'&&A&&A.role==='super')S=await api('GET','/super/state');
+  else S={rs:[],ss:[]}}catch(e){S={rs:[],ss:[]};ERR=e.message}
+ if(rt.v==='cust'&&S.ss[0]){ui.sid=S.ss[0].id;try{sessionStorage.setItem('tt_sid',ui.sid)}catch(e){}}
+ ready=true;render();listen()}
+let es=null,esKey=null;
+function listen(){const rt=route();const ch=rt.v==='cust'?(S.ss[0]&&S.ss[0].id):(rt.v==='admin'&&A&&A.rid)||null;
+ if(ch===esKey)return;if(es)es.close();es=null;esKey=ch;if(!ch)return;
+ es=new EventSource('/api/stream?ch='+encodeURIComponent(ch));es.onmessage=()=>refresh(true)}
+window.addEventListener('hashchange',()=>{ui.tab='menu';ui.tray={};ready=false;render();refresh()});
+
+function route(){const h=location.hash.replace(/^#\/?/,'').split('/');
+ if(h[0]==='r'&&h[2]==='t')return{v:'cust',slug:h[1],t:parseInt(h[3],10)||1};
+ if(h[0]==='admin')return{v:'admin'};if(h[0]==='super')return{v:'super'};return{v:'home'}}
+function hdr(title,out){return`<div class="top"><a class="brand" href="#/"><img src="/icon.png" alt="" width="34" height="34"><b>Cravings Hunt</b></a><span class="grow mute" style="color:#ffd9b3">${esc(title)}</span>${out?'<button class="alt" data-act="logout">Log out</button>':'<a href="#/" style="color:#fff">Home</a>'}</div>`}
+
+function home(){return hdr('Scan · Order · Pay')+`<div class="wrap" style="text-align:center"><img src="/logo.png" alt="Cravings Hunt" width="260" height="260" style="max-width:60%;height:auto"><h1 class="big">Scan. Order. Pay.</h1>
+<p class="mute">Guests scan the QR on their table. Restaurants and the platform owner sign in below.</p><div class="grid" style="text-align:left;margin-top:1rem">
+<div class="card"><h3>Restaurant admin</h3><p class="mute">Kitchen orders, menu, tables, staff and sales.</p><a href="#/admin"><button>Open admin</button></a></div>
+<div class="card"><h3>Platform owner</h3><p class="mute">Onboard and manage every restaurant.</p><a href="#/super"><button class="alt">Open super admin</button></a></div></div></div>`}
+
+/* ---------- Customer ---------- */
+function sessionFor(r,t,make){let s=S.ss.find(x=>x.rid===r.id&&x.table===t&&!x.paid);
+ if(!s&&make){s={id:uid(),rid:r.id,table:t,rounds:[],paid:false,ts:Date.now()};S.ss.push(s);save()}return s}
+function cust(rt){const r=S.rs.find(x=>x.slug===rt.slug);
+ if(!r||!r.active)return hdr('Not available')+`<div class="wrap narrow"><div class="card"><h3>This restaurant is not available</h3><p class="mute">Ask the staff for help or scan the QR code again.</p></div></div>`;
+ if(rt.t<1||rt.t>r.tables)return hdr(r.name)+`<div class="wrap narrow"><div class="card"><h3>Table ${rt.t} does not exist</h3><p class="mute">Scan the QR on your table again.</p></div></div>`;
+ let s=ui.sid&&S.ss.find(x=>x.id===ui.sid&&x.paid&&x.rid===r.id);
+ if(s)return hdr(r.name)+invoice(r,s,true);
+ s=S.ss[0];ui.sid=s.id;
+ const n=Object.values(ui.tray).reduce((a,i)=>a+i.qty,0),tv=Object.values(ui.tray).reduce((a,i)=>a+i.qty*i.price,0);
+ const head=hdr(r.name+' · Table '+rt.t);
+ const tabs=`<div class="tabs"><button class="chip ${ui.tab==='menu'?'on':''}" data-act="tab" data-v="menu">Menu</button><button class="chip ${ui.tab==='tray'?'on':''}" data-act="tab" data-v="tray">My Tray (${n})</button><button class="chip ${ui.tab==='orders'?'on':''}" data-act="tab" data-v="orders">My orders (${s.rounds.length})</button></div>`;
+ let body='';
+ if(ui.tab==='menu'){const cats=['All',...new Set(r.menu.map(d=>d.cat))];
+  body=`<div class="chips">${cats.map(c=>`<button class="chip ${ui.cat===c?'on':''}" data-act="cat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>`+
+  r.menu.filter(d=>ui.cat==='All'||d.cat===ui.cat).map(d=>{const q=ui.tray[d.id]?ui.tray[d.id].qty:0;
+   return`<div class="dish ${d.on?'':'off'}"><div class="ph"><span>${esc(d.e)}</span>${d.img?`<img src="${esc(d.img)}" alt="${esc(d.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</div>
+<div class="grow"><b><span class="dot ${d.veg?'':'nv'}"></span>${esc(d.name)}</b><div class="mute">${esc(d.d)}</div>
+<div class="row sp" style="margin-top:.4rem"><b>${money(d.price)}</b>${!d.on?'<span class="tag">Sold out</span>':q?`<span class="step"><button data-act="dec" data-id="${d.id}" aria-label="Remove one">−</button>${q}<button data-act="inc" data-id="${d.id}" aria-label="Add one">+</button></span>`:`<button class="sun" data-act="add" data-id="${d.id}">Add to My Tray</button>`}</div></div></div>`}).join('')}
+ if(ui.tab==='tray'){const l=Object.values(ui.tray);
+  body=!l.length?`<div class="card"><h3>Your tray is empty</h3><p class="mute">Pick dishes from the menu, then send them to the kitchen.</p><button data-act="tab" data-v="menu">Browse menu</button></div>`:
+  `<div class="card">${l.map(i=>`<div class="row sp"><span>${esc(i.name)}</span><span class="step"><button data-act="dec" data-id="${i.id}">−</button>${i.qty}<button data-act="inc" data-id="${i.id}">+</button></span><b>${money(i.qty*i.price)}</b></div>`).join('<hr style="border:0;border-top:1px solid var(--line)">')}
+<div class="row sp" style="margin-top:.8rem"><b>Tray total (before tax)</b><b>${money(tv)}</b></div></div><button class="sun" style="width:100%;padding:.9rem" data-act="send">Send to kitchen</button><p class="mute">You can keep adding dishes any time. Each send goes to the kitchen as a new round.</p>`}
+ if(ui.tab==='orders'){
+  body=!s.rounds.length?`<div class="card"><h3>No orders yet</h3><p class="mute">Send your tray to the kitchen to see live status here.</p></div>`:
+  s.rounds.map((x,i)=>`<div class="card"><div class="row sp"><b>Round ${i+1}</b><span class="tag ${x.status}">${{new:'Sent to kitchen',preparing:'Being prepared',ready:'Ready',served:'Served'}[x.status]}</span></div>${x.items.map(it=>`<div class="row sp mute"><span>${it.qty} × ${esc(it.name)}</span><span>${money(it.qty*it.price)}</span></div>`).join('')}</div>`).join('')+
+  `<button style="width:100%;padding:.9rem" data-act="tab" data-v="pay">Finish meal and pay</button>`}
+ if(ui.tab==='pay'){const b=bill(s,ui.tip);
+  const chips=[0,5,10,15].map(p=>`<button class="chip ${Math.round(b.b*p/100)===ui.tip?'on':''}" data-act="tip" data-v="${Math.round(b.b*p/100)}">${p?p+'%':'No tip'}</button>`).join('');
+  body=!s.rounds.length?`<div class="card">Nothing to pay yet.</div>`:`<div class="card"><h3>Your bill</h3>${items(s).map(i=>`<div class="row sp"><span>${i.qty} × ${esc(i.name)}</span><span>${money(i.qty*i.price)}</span></div>`).join('')}
+<hr><div class="row sp"><span>Subtotal</span><span>${money(b.b)}</span></div><div class="row sp"><span>GST (5%)</span><span>${money(b.g)}</span></div></div>
+<div class="card"><h3>Add a tip</h3><div class="row">${chips}<input type="number" min="0" step="1" placeholder="Custom ₹" value="${ui.tip||''}" data-chg="tipc" aria-label="Custom tip"></div>
+<p class="mute" style="margin-bottom:.3rem">Who served you?</p><select data-chg="staff" aria-label="Staff member"><option value="">Choose a team member</option>${r.staff.map(x=>`<option value="${x.id}" ${ui.staff===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+<div class="card"><h3>Pay with</h3><div class="row">${['UPI','Card','Net banking'].map(m=>`<button class="chip ${ui.method===m?'on':''}" data-act="method" data-v="${m}">${m}</button>`).join('')}</div></div>
+<button class="sun" style="width:100%;padding:.9rem" data-act="pay">Pay ${money(b.t)}</button><p class="mute">Secure checkout. Your invoice appears as soon as you pay.</p>`}
+ const bar=n&&ui.tab==='menu'?`<div class="bar"><b>${n} item${n>1?'s':''} · ${money(tv)}</b><button data-act="tab" data-v="tray">View My Tray</button></div>`:'';
+ return head+`<div class="wrap narrow">${tabs}${body}<div class="pad"></div></div>`+bar}
+
+function invoice(r,s,cust){const b=bill(s,s.tip||0),st=r.staff.find(x=>x.id===s.tipStaff);
+ return`<div class="wrap narrow"><div class="card"><h2 style="margin:0">${esc(r.name)}</h2><p class="mute">Invoice #${esc(s.id.toUpperCase())} · Table ${s.table} · ${new Date(s.paidAt||s.ts).toLocaleString('en-IN')}</p>
+${items(s).map(i=>`<div class="row sp"><span>${i.qty} × ${esc(i.name)}</span><span>${money(i.qty*i.price)}</span></div>`).join('')}<hr>
+<div class="row sp"><span>Subtotal</span><span>${money(b.b)}</span></div><div class="row sp"><span>GST (5%)</span><span>${money(b.g)}</span></div>
+${b.tip?`<div class="row sp"><span>Tip${st?' for '+esc(st.name):''}</span><span>${money(b.tip)}</span></div>`:''}
+<div class="row sp big"><span>Total paid</span><span>${money(b.t)}</span></div><p class="mute">Paid by ${esc(s.method||'Cash')}. Thank you!</p></div>
+<div class="row noprint"><button data-act="print">Print or save PDF</button>${cust?'<button class="alt" data-act="again">Start a new order</button>':''}</div></div>`}
+
+/* ---------- Admin ---------- */
+function admin(){
+ if(!A||A.role!=='admin'||!R(A.rid))return hdr('Restaurant admin')+`<div class="wrap narrow"><div class="card"><h3>Admin sign in</h3><div class="row"><input id="lr" placeholder="Restaurant ID" aria-label="Restaurant ID" autocapitalize="none"><input id="lp" type="password" placeholder="PIN" aria-label="PIN"><button data-act="alogin">Sign in</button></div><p class="mute">Use the restaurant ID and PIN you received from Cravings Hunt.</p></div></div>`;
+ const r=R(A.rid),tabs=[['orders','Live orders'],['menu','Menu'],['tables','Tables & QR'],['staff','Staff'],['sales','Sales']];
+ const open=S.ss.filter(s=>s.rid===r.id&&!s.paid),paid=S.ss.filter(s=>s.rid===r.id&&s.paid);
+ let b='';
+ if(!r.active)b+=`<div class="card"><b>This restaurant is currently suspended.</b> Contact the platform owner.</div>`;
+ if(ui.at==='orders'){const rounds=open.flatMap(s=>s.rounds.map((x,i)=>({s,x,i}))).filter(o=>o.x.status!=='served').sort((a,c)=>a.x.ts-c.x.ts);
+  b+=(rounds.length?rounds.map(o=>{const nx={new:'Start preparing',preparing:'Mark ready',ready:'Mark served'}[o.x.status];
+   return`<div class="card"><div class="row sp"><b>Table ${o.s.table} · Round ${o.i+1}</b><span class="tag ${o.x.status}">${o.x.status}</span></div><div class="mute">${new Date(o.x.ts).toLocaleTimeString('en-IN')}</div>${o.x.items.map(i=>`<div>${i.qty} × ${esc(i.name)}</div>`).join('')}<button style="margin-top:.5rem" data-act="ost" data-s="${o.s.id}" data-x="${o.x.id}">${nx}</button></div>`}).join(''):'<div class="card mute">No active orders. New orders appear here instantly.</div>')+
+  `<h3>Open tables</h3>`+(open.filter(s=>s.rounds.length).map(s=>`<div class="card row sp"><span>Table ${s.table} · ${money(bill(s).t)} due</span><button class="alt" data-act="cash" data-s="${s.id}">Mark paid in cash</button></div>`).join('')||'<p class="mute">None.</p>')}
+ if(ui.at==='menu'){b+=`<div class="card"><h3>Add a dish</h3><div class="row"><input id="mn" placeholder="Name"><input id="mc" placeholder="Category" list="cl"><datalist id="cl">${[...new Set(r.menu.map(d=>d.cat))].map(c=>`<option>${esc(c)}`).join('')}</datalist><input id="mp" type="number" min="0" placeholder="Price ₹" style="width:110px"><input id="me" placeholder="Emoji" style="width:80px"><input id="mf" type="file" accept="image/*" aria-label="Dish photo"><select id="mv"><option value="1">Veg</option><option value="0">Non-veg</option></select><button data-act="madd">Add dish</button></div></div>
+<div class="card" style="overflow:auto"><table><tr><th>Dish</th><th>Category</th><th>Price</th><th>Photo</th><th>Available</th><th></th></tr>${r.menu.map(d=>`<tr><td style="white-space:nowrap">${d.img?`<img src="${esc(d.img)}" alt="" width="40" height="40" referrerpolicy="no-referrer" style="border-radius:8px;object-fit:cover;vertical-align:middle;margin-right:.4rem" onerror="this.remove()">`:''}${esc(d.e)} ${esc(d.name)}</td><td>${esc(d.cat)}</td><td><input type="number" min="0" value="${d.price}" style="width:90px" data-chg="mprice" data-id="${d.id}" aria-label="Price"></td><td><input type="file" accept="image/*" data-chg="mimg" data-id="${d.id}" aria-label="Upload photo for ${esc(d.name)}" style="width:150px"></td><td><button class="${d.on?'':'alt'}" data-act="mon" data-id="${d.id}">${d.on?'On':'Sold out'}</button></td><td><button class="bad" data-act="mdel" data-id="${d.id}">Delete</button></td></tr>`).join('')}</table></div>`}
+ if(ui.at==='tables'){b+=`<div class="card row"><label>Number of tables <input id="tn" type="number" min="1" max="200" value="${r.tables}" style="width:90px"></label><button data-act="tset">Save</button><button class="alt" data-act="print">Print QR codes</button></div><div class="grid">${Array.from({length:r.tables},(_,i)=>{const u=location.href.split('#')[0]+'#/r/'+r.slug+'/t/'+(i+1);return`<div class="card"><b>Table ${i+1}</b><div class="qr" data-u="${esc(u)}"></div><a class="mute" href="${esc(u)}" target="_blank" rel="noopener">Open as customer</a></div>`}).join('')}</div>`}
+ if(ui.at==='staff'){b+=`<div class="card"><h3>Team members (shown in the tip dropdown)</h3><div class="row"><input id="sn" placeholder="Name"><button data-act="sadd">Add</button></div>${r.staff.map(x=>`<div class="row sp" style="margin-top:.5rem"><span>${esc(x.name)}</span><button class="bad" data-act="sdel" data-id="${x.id}">Remove</button></div>`).join('')}</div>`}
+ if(ui.at==='sales'){const tot=paid.reduce((a,s)=>a+bill(s,s.tip).t,0),tips={};paid.forEach(s=>{if(s.tip){const n=(r.staff.find(x=>x.id===s.tipStaff)||{name:'Unassigned'}).name;tips[n]=(tips[n]||0)+s.tip}});
+  b+=`<div class="grid"><div class="card"><div class="mute">Revenue</div><div class="big">${money(tot)}</div></div><div class="card"><div class="mute">Paid bills</div><div class="big">${paid.length}</div></div></div><div class="card"><h3>Tips by team member</h3>${Object.keys(tips).map(n=>`<div class="row sp"><span>${esc(n)}</span><b>${money(tips[n])}</b></div>`).join('')||'<span class="mute">No tips yet.</span>'}</div>`}
+ return hdr(r.name+' · Admin',1)+`<div class="wrap"><div class="tabs">${tabs.map(t=>`<button class="chip ${ui.at===t[0]?'on':''}" data-act="at" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>${b}</div>`}
+
+/* ---------- Super admin ---------- */
+function sup(){
+ if(!A||A.role!=='super')return hdr('Super admin')+`<div class="wrap narrow"><div class="card"><h3>Super admin sign in</h3><div class="row"><input id="sp" type="password" placeholder="Password" aria-label="Password"><button data-act="slogin">Sign in</button></div></div></div>`;
+ const rev=r=>S.ss.filter(s=>s.rid===r.id&&s.paid).reduce((a,s)=>a+bill(s,s.tip).t,0);
+ return hdr('Super admin',1)+`<div class="wrap"><div class="grid"><div class="card"><div class="mute">Restaurants</div><div class="big">${S.rs.length}</div></div><div class="card"><div class="mute">Platform revenue</div><div class="big">${money(S.rs.reduce((a,r)=>a+rev(r),0))}</div></div></div>
+<div class="card"><h3>Onboard a restaurant</h3><div class="row"><input id="rn" placeholder="Restaurant name"><input id="rp" placeholder="Admin PIN" style="width:120px"><select id="rl"><option>Basic</option><option>Pro</option></select><button data-act="radd">Create</button></div></div>
+<div class="card" style="overflow:auto"><table><tr><th>Restaurant</th><th>Plan</th><th>Tables</th><th>Revenue</th><th>Status</th><th></th></tr>${S.rs.map(r=>`<tr><td><b>${esc(r.name)}</b><div class="mute">/${esc(r.slug)}</div></td><td>${esc(r.plan)}</td><td>${r.tables}</td><td>${money(rev(r))}</td><td><button class="${r.active?'':'alt'}" data-act="rtog" data-id="${r.id}">${r.active?'Active':'Suspended'}</button></td><td class="row"><button class="alt" data-act="imp" data-id="${r.id}">Open admin</button><button class="bad" data-act="rdel" data-id="${r.id}">Delete</button></td></tr>`).join('')}</table></div></div>`}
+
+/* ---------- Render & events ---------- */
+const setAuth=v=>{A=v;try{v?sessionStorage.setItem('tt_auth',JSON.stringify(v)):sessionStorage.removeItem('tt_auth')}catch(e){}};
+function render(){const rt=route(),a=document.getElementById('app');
+ if(!ready){a.innerHTML=hdr('Cravings Hunt')+'<div class="wrap narrow"><div class="card">Loading…</div></div>';return}
+ if(ERR&&rt.v==='cust'){a.innerHTML=hdr('Cravings Hunt')+`<div class="wrap narrow"><div class="card"><h3>Could not open this table</h3><p class="mute">${esc(ERR)}</p><button data-act="retry">Try again</button></div></div>`;return}
+ a.innerHTML=rt.v==='cust'?cust(rt):rt.v==='admin'?admin():rt.v==='super'?sup():home();
+ a.querySelectorAll('.qr').forEach(el=>{if(typeof QRCode!=='undefined')try{new QRCode(el,{text:el.dataset.u,width:128,height:128})}catch(e){}else el.textContent='QR library offline'})}
+async function uploadPic(f){if(!f)return '';const d=await new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const k=Math.min(1,800/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.8))};i.onerror=()=>no(new Error('That file is not a photo'));i.src=r.result};r.onerror=()=>no(new Error('Could not read the photo'));r.readAsDataURL(f)});return (await api('POST','/admin/upload',{dataUrl:d})).url}
+const val=id=>(document.getElementById(id)||{}).value||'';
+function payRzp(p){return new Promise((ok,no)=>{const go=()=>{const z=new Razorpay({key:p.key,amount:p.order.amount,currency:'INR',order_id:p.order.id,name:'Cravings Hunt',
+ handler:async x=>{try{await api('POST','/pay/confirm',{sid:p.sid,method:'Razorpay',razorpay_payment_id:x.razorpay_payment_id,razorpay_order_id:x.razorpay_order_id,razorpay_signature:x.razorpay_signature});ok()}catch(e){no(e)}},
+ modal:{ondismiss:()=>no(new Error('Payment cancelled'))}});z.open()};
+ if(window.Razorpay)go();else{const sc=document.createElement('script');sc.src='https://checkout.razorpay.com/v1/checkout.js';sc.onload=go;sc.onerror=()=>no(new Error('Could not load the payment window'));document.body.appendChild(sc)}})}
+document.addEventListener('change',async e=>{const t=e.target,c=t.dataset.chg;if(!c)return;
+ if(c==='tipc')ui.tip=Math.max(0,Math.round(Number(t.value)||0));
+ else if(c==='staff')ui.staff=t.value;
+ else if(c==='mprice'){try{await api('POST','/admin/menu/'+t.dataset.id,{price:Number(t.value)});toast('Price updated')}catch(err){toast(err.message)}await refresh();return}
+ else if(c==='mimg'&&t.files[0]){try{const u=await uploadPic(t.files[0]);await api('POST','/admin/menu/'+t.dataset.id,{img:u});toast('Photo updated')}catch(err){toast(err.message)}await refresh();return}
+ render()});
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-act]');if(!t)return;const a=t.dataset.act,v=t.dataset.v,id=t.dataset.id,cr=S.rs[0],s0=S.ss[0];let sync=false;
+ try{
+ if(a==='tab')ui.tab=v;else if(a==='cat')ui.cat=v;else if(a==='tip')ui.tip=Number(v);else if(a==='method')ui.method=v;else if(a==='at')ui.at=v;
+ else if(a==='retry')sync=true;
+ else if(a==='add'){const d=cr.menu.find(x=>x.id===id);if(d&&d.on)ui.tray[id]={id,name:d.name,price:d.price,qty:1}}
+ else if(a==='inc'&&ui.tray[id]){if(ui.tray[id].qty<50)ui.tray[id].qty++}
+ else if(a==='dec'&&ui.tray[id]){if(--ui.tray[id].qty<=0)delete ui.tray[id]}
+ else if(a==='send'){const l=Object.values(ui.tray);if(l.length){await api('POST','/order',{sid:s0.id,items:l.map(i=>({id:i.id,qty:i.qty}))});ui.tray={};ui.tab='orders';toast('Sent to the kitchen');sync=true}}
+ else if(a==='pay'){if(!s0||!s0.rounds.length)return;if(ui.tip>0&&!ui.staff){toast('Choose who the tip is for');return}
+  const p=await api('POST','/pay/create',{sid:s0.id,tip:ui.tip,staff:ui.staff});
+  if(p.mode==='razorpay')await payRzp(p);else await api('POST','/pay/confirm',{sid:s0.id,method:ui.method});
+  ui.tip=0;ui.staff='';toast('Payment successful');sync=true}
+ else if(a==='again'){ui.sid=null;ui.tab='menu';ui.tray={};try{sessionStorage.removeItem('tt_sid')}catch(e){}sync=true}
+ else if(a==='print')window.print();
+ else if(a==='alogin'){const j=await api('POST','/admin/login',{slug:val('lr'),pin:val('lp')});setAuth({role:'admin',rid:j.rid,token:j.token});sync=true}
+ else if(a==='slogin'){const j=await api('POST','/super/login',{password:val('sp')});setAuth({role:'super',token:j.token});sync=true}
+ else if(a==='logout'){setAuth(null);S={rs:[],ss:[]};if(es){es.close();es=null;esKey=null}}
+ else if(a==='ost'){await api('POST','/admin/status',{sid:t.dataset.s,xid:t.dataset.x});sync=true}
+ else if(a==='cash'){await api('POST','/admin/cash',{sid:t.dataset.s});toast('Marked as paid');sync=true}
+ else if(a==='madd'){if(!val('mn').trim()||val('mp')===''){toast('Enter a name and price');return}
+  await api('POST','/admin/menu',{name:val('mn'),cat:val('mc'),price:val('mp'),e:val('me'),img:await uploadPic(document.getElementById('mf').files[0]),veg:val('mv')==='1'});toast('Dish added');sync=true}
+ else if(a==='mon'){const d=cr.menu.find(x=>x.id===id);if(d){await api('POST','/admin/menu/'+id,{on:!d.on});sync=true}}
+ else if(a==='mdel'){if(!confirm('Delete this dish?'))return;await api('DELETE','/admin/menu/'+id);sync=true}
+ else if(a==='tset'){await api('POST','/admin/tables',{n:val('tn')});toast('Tables saved');sync=true}
+ else if(a==='sadd'){await api('POST','/admin/staff',{name:val('sn')});sync=true}
+ else if(a==='sdel'){await api('DELETE','/admin/staff/'+id);sync=true}
+ else if(a==='radd'){await api('POST','/super/rest',{name:val('rn'),pin:val('rp'),plan:val('rl')});toast('Restaurant created');sync=true}
+ else if(a==='rtog'){const r=R(id);if(r){await api('POST','/super/rest/'+id,{active:!r.active});sync=true}}
+ else if(a==='rdel'){if(!confirm('Delete this restaurant and all its orders?'))return;await api('DELETE','/super/rest/'+id);sync=true}
+ else if(a==='imp'){const j=await api('POST','/super/impersonate/'+id);setAuth({role:'admin',rid:id,token:j.token});ready=false;location.hash='#/admin';return}
+ }catch(err){toast(err.message);return}
+ if(sync)await refresh();else render()});
+refresh();
+setInterval(()=>{if(!document.hidden)refresh(true)},20000);
+</script></body></html>
